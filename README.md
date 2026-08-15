@@ -72,7 +72,7 @@ Or just run the compiled `SP404Converter.exe` (see build instructions below).
 4. Click **CONVERT ALL**.
 5. Converted files get the `_sp.wav` suffix.
 
-> **Note for Windows:** if the app is run as Administrator, Windows blocks dragging files from File Explorer (the forbidden cursor ­ƒÜ½ is shown). Run it normally; the app warns you automatically if it detects elevated privileges.
+> **Note for Windows:** if the app is run as Administrator, Windows blocks dragging files from File Explorer (the forbidden cursor 🚫 is shown). Run it normally; the app warns you automatically if it detects elevated privileges.
 
 ## Building a standalone .exe
 The build script bundles `ffmpeg.exe` and `ffprobe.exe` from your system into the executable, so the result is a single portable file.
