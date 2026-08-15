@@ -5,7 +5,8 @@ from pathlib import Path
 from typing import Optional
 
 from PySide6.QtCore import (
-    Qt, QThread, QObject, Signal, Slot, QThreadPool, QRunnable, QSize
+    Qt, QThread, QObject, Signal, Slot, QThreadPool, QRunnable, QSize,
+    QRect, QPoint,
 )
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -13,7 +14,7 @@ from PySide6.QtWidgets import (
     QGroupBox, QFileDialog, QMessageBox, QScrollArea, QStyle, QCheckBox,
     QAbstractItemView,
 )
-from PySide6.QtGui import QDragEnterEvent, QDragMoveEvent, QDropEvent, QIcon, QFont, QColor
+from PySide6.QtGui import QDragEnterEvent, QDragMoveEvent, QDropEvent, QIcon, QFont, QColor, QPainter
 
 from converter import (
     convert_file, find_audio_files, check_ffmpeg, ConversionResult,
@@ -66,6 +67,57 @@ class DropListWidget(QListWidget):
     """List widget with drag-and-drop support for folders/files."""
 
     files_dropped = Signal(list)  # list of Paths
+
+    EMPTY_ICON_SIZE = 44
+
+    def paintEvent(self, event):
+        """Draw a placeholder (icon + hint) when the queue is empty.
+
+        The default rendering is left untouched; the hint is only drawn on top
+        so it disappears automatically as soon as items are present.
+        """
+        super().paintEvent(event)
+        if self.count() > 0 or not self.isEnabled():
+            return
+
+        rect = self.viewport().rect()
+        if rect.isEmpty():
+            return
+
+        painter = QPainter(self.viewport())
+        painter.setRenderHint(QPainter.Antialiasing)
+
+        # Icon: plain folder, centered above the hint text.
+        icon = self.style().standardIcon(QStyle.SP_DirOpenIcon)
+        icon_size = self.EMPTY_ICON_SIZE
+        icon_rect = QRect(0, 0, icon_size, icon_size)
+        icon_rect.moveCenter(QPoint(rect.center().x(), rect.center().y() - icon_size - 4))
+        painter.setOpacity(0.35)
+        icon.paint(painter, icon_rect)
+        painter.setOpacity(1.0)
+
+        # Primary hint
+        font_main = QFont(self.font())
+        font_main.setPointSizeF(11)
+        font_main.setBold(True)
+        painter.setFont(font_main)
+        main_rect = QRect(
+            rect.left(), icon_rect.bottom() + 12,
+            rect.width(), int(font_main.pointSizeF() * 1.8),
+        )
+        painter.setPen(QColor("#d5dde5"))
+        painter.drawText(main_rect, Qt.AlignHCenter | Qt.AlignTop, "Drop audio files or folders here")
+
+        # Secondary hint: supported formats
+        font_sub = QFont(self.font())
+        font_sub.setPointSizeF(9)
+        painter.setFont(font_sub)
+        sub_rect = QRect(
+            rect.left(), main_rect.bottom() + 4,
+            rect.width(), int(font_sub.pointSizeF() * 1.6),
+        )
+        painter.setPen(QColor("#909197"))
+        painter.drawText(sub_rect, Qt.AlignHCenter | Qt.AlignTop, "WAV · MP3 · FLAC · AIFF · OGG · M4A")
 
     def __init__(self):
         super().__init__()
@@ -198,12 +250,6 @@ class MainWindow(QMainWindow):
         title.setAlignment(Qt.AlignCenter)
         main_layout.addWidget(title)
 
-        subtitle = QLabel("Drag and Drop entire Packs")
-        subtitle.setObjectName("subtitleLabel")
-        subtitle.setAlignment(Qt.AlignCenter)
-        subtitle.setWordWrap(True)
-        main_layout.addWidget(subtitle)
-
         # Drop zone / Queue
         queue_group = QGroupBox("Conversion queue")
         queue_layout = QVBoxLayout(queue_group)
@@ -215,7 +261,7 @@ class MainWindow(QMainWindow):
 
         # Manual folder selection
         manual_controls = QHBoxLayout()
-        self.browse_folder_btn = QPushButton("Select folder manually")
+        self.browse_folder_btn = QPushButton("Add folder")
         self.browse_folder_btn.clicked.connect(self.browse_folder_manually)
         self.browse_folder_btn.setToolTip("Add")
         manual_controls.addWidget(self.browse_folder_btn)
@@ -238,7 +284,7 @@ class MainWindow(QMainWindow):
         output_group = QGroupBox("Output Folder")
         output_layout = QVBoxLayout(output_group)
         output_row = QHBoxLayout()
-        self.output_label = QLabel("Not set (same as source)")
+        self.output_label = QLabel("Same folder as source")
         self.output_label.setObjectName("statusLabel")
         self.output_label.setWordWrap(True)
         self.browse_btn = QPushButton("Output folder")
@@ -576,7 +622,7 @@ def main():
             "Windows may block drag and drop files from Explorer to "
             "(the prohibited cursor is shown).\n\n"
             "Close this instance and run it WITHOUT administrator privileges. "
-            "(You can still use 'Select folder manually'.)"
+            "(You can still use 'Add folder'.)"
         )
 
     sys.exit(app.exec())
