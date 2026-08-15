@@ -1,4 +1,4 @@
-"""SP-404 MK2 Converter - GUI using PySide6."""
+"""SP-404 MK2 Simple Converter - GUI using PySide6."""
 
 import sys
 from pathlib import Path
