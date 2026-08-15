@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# PyInstaller
+build/
+dist/
+*.spec
+SP404Converter.exe
+
+# OS
+Thumbs.db
+.DS_Store
