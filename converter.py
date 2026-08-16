@@ -3,10 +3,14 @@
 import subprocess
 import shlex
 import sys
+import os
 from pathlib import Path
 from dataclasses import dataclass
 from typing import Optional
 import json
+
+# Hide ffmpeg/ffprobe console window on Windows (no visible cmd while converting).
+NO_WINDOW_FLAGS = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
 
 
 @dataclass
@@ -68,7 +72,8 @@ def build_ffmpeg_cmd(input_path: Path, output_path: Path) -> list[str]:
 def check_ffmpeg() -> bool:
     """Verify ffmpeg is available (bundled or in PATH)."""
     try:
-        subprocess.run([ffmpeg_bin(), "-version"], capture_output=True, check=True)
+        subprocess.run([ffmpeg_bin(), "-version"], capture_output=True, check=True,
+                       creationflags=NO_WINDOW_FLAGS)
         return True
     except (subprocess.CalledProcessError, FileNotFoundError):
         return False
@@ -83,7 +88,8 @@ def get_audio_info(file_path: Path) -> dict:
         str(file_path),
     ]
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True,
+                                creationflags=NO_WINDOW_FLAGS)
         data = json.loads(result.stdout)
         for stream in data.get("streams", []):
             if stream.get("codec_type") == "audio":
@@ -187,6 +193,7 @@ def convert_file(
             capture_output=True,
             text=True,
             timeout=300,  # 5 min max per file
+            creationflags=NO_WINDOW_FLAGS,
         )
         if result.returncode == 0 and output_path.exists():
             return ConversionResult(True, input_path, output_path)
