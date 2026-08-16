@@ -1,4 +1,4 @@
-"""SP-404 MK2 Simple Converter - GUI using PySide6."""
+﻿"""SP-404 MK2 Simple Converter - GUI using PySide6."""
 
 import sys
 from pathlib import Path
@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QListWidget, QListWidgetItem, QPushButton, QLabel, QProgressBar,
     QGroupBox, QFileDialog, QMessageBox, QScrollArea, QStyle, QCheckBox,
-    QAbstractItemView, QSizePolicy,
+    QAbstractItemView,
 )
 from PySide6.QtGui import QDragEnterEvent, QDragMoveEvent, QDropEvent, QIcon, QFont, QColor, QPainter
 
@@ -68,7 +68,7 @@ class DropListWidget(QListWidget):
 
     files_dropped = Signal(list)  # list of Paths
 
-    EMPTY_ICON_SIZE = 36
+    EMPTY_ICON_SIZE = 44
 
     def paintEvent(self, event):
         """Draw a placeholder (icon + hint) when the queue is empty.
@@ -85,10 +85,10 @@ class DropListWidget(QListWidget):
             return
 
         painter = QPainter(self.viewport())
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setRenderHint(QPainter.Antialiasing)
 
         # Icon: plain folder, centered above the hint text.
-        icon = self.style().standardIcon(QStyle.StandardPixmap.SP_DirOpenIcon)
+        icon = self.style().standardIcon(QStyle.SP_DirOpenIcon)
         icon_size = self.EMPTY_ICON_SIZE
         icon_rect = QRect(0, 0, icon_size, icon_size)
         icon_rect.moveCenter(QPoint(rect.center().x(), rect.center().y() - icon_size - 4))
@@ -98,45 +98,47 @@ class DropListWidget(QListWidget):
 
         # Primary hint
         font_main = QFont(self.font())
-        font_main.setPointSizeF(9)
+        font_main.setPointSizeF(11)
         font_main.setBold(True)
         painter.setFont(font_main)
         main_rect = QRect(
             rect.left(), icon_rect.bottom() + 12,
             rect.width(), int(font_main.pointSizeF() * 1.8),
         )
-        painter.setPen(QColor("#e5e5e5"))
-        painter.drawText(
-            main_rect,
-            Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop,
-            "Drop files or folders",
-        )
+        painter.setPen(QColor("#d5dde5"))
+        painter.drawText(main_rect, Qt.AlignHCenter | Qt.AlignTop, "Drop audio files or folders here")
 
         # Secondary hint: supported formats
         font_sub = QFont(self.font())
-        font_sub.setPointSizeF(7.5)
+        font_sub.setPointSizeF(9)
         painter.setFont(font_sub)
         sub_rect = QRect(
             rect.left(), main_rect.bottom() + 4,
             rect.width(), int(font_sub.pointSizeF() * 1.6),
         )
-        painter.setPen(QColor("#92959a"))
-        painter.drawText(
-            sub_rect,
-            Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop,
-            "WAV · MP3 · FLAC · AIFF · OGG · M4A",
-        )
+        painter.setPen(QColor("#909197"))
+        painter.drawText(sub_rect, Qt.AlignHCenter | Qt.AlignTop, "WAV ┬À MP3 ┬À FLAC ┬À AIFF ┬À OGG ┬À M4A")
 
     def __init__(self):
         super().__init__()
-        self.setObjectName("dropList")
         self.setAcceptDrops(True)
         # QAbstractItemView requires a drag-drop mode != NoDragDrop to accept
         # external drops (Explorer); otherwise the OS shows the forbidden cursor.
-        self.setDragDropMode(QAbstractItemView.DragDropMode.DropOnly)
+        self.setDragDropMode(QAbstractItemView.DropOnly)
         self.viewport().setAcceptDrops(True)
-        self.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
+        self.setSelectionMode(QListWidget.MultiSelection)
         self.setAlternatingRowColors(True)
+        self.setStyleSheet("""
+            QListWidget {
+                background-color: #242527;
+                border: 2px dashed #909197;
+                border-radius: 8px;
+            }
+            QListWidget[dragActive="true"] {
+                border-color: #f2627d;
+                background-color: #242527;
+            }
+        """)
 
     def dragEnterEvent(self, event: QDragEnterEvent):
         # Accept drag for files and folders
@@ -189,25 +191,23 @@ class MainWindow(QMainWindow):
         # Accept files dropped anywhere on the window (fallback while the
         # QListWidget underneath handles its own drop area).
         self.setAcceptDrops(True)
-        # Fixed, non-resizable window: sized to the design but capped so it
-        # never covers the whole screen.
-        desired_w, desired_h = 1200, 360
-        screen = QApplication.primaryScreen()
-        if screen is not None:
-            geo = screen.availableGeometry()
-            w = int(min(desired_w, max(geo.width() - 48, 900)))
-            h = int(min(desired_h, max(geo.height() - 48, 360)))
-        else:
-            w, h = desired_w, desired_h
-        self.setFixedSize(w, h)
+        # Hard minimum so the window can never be shrunk below comfortable
+        # proportions (everything must keep its size and place).
+        MIN_W, MIN_H = 780, 700
+        self.setMinimumSize(MIN_W, MIN_H)
 
-        # Center the window on screen.
+        # Size the window relative to the current screen so the layout fits
+        # any resolution and everything keeps its size and place.
         screen = QApplication.primaryScreen()
         if screen is not None:
             geo = screen.availableGeometry()
+            w = max(int(geo.width() * 0.62), MIN_W)
+            h = max(int(geo.height() * 0.80), MIN_H)
+            self.resize(w, h)
             center = geo.center()
-            self.move(int(center.x() - self.width() / 2),
-                      int(center.y() - self.height() / 2))
+            self.move(int(center.x() - w / 2), int(center.y() - h / 2))
+        else:
+            self.resize(max(1000, MIN_W), max(700, MIN_H))
 
         # State
         self.pending_files: list[tuple[Path, Optional[Path]]] = []  # (file, source_root)
@@ -240,112 +240,60 @@ class MainWindow(QMainWindow):
     def setup_ui(self):
         central = QWidget()
         self.setCentralWidget(central)
+        main_layout = QVBoxLayout(central)
+        main_layout.setSpacing(12)
+        main_layout.setContentsMargins(20, 16, 20, 16)
 
-        root = QVBoxLayout(central)
-        root.setSpacing(6)
-        root.setContentsMargins(16, 8, 16, 8)
-
-        # Header
+        # Title
         title = QLabel("SP-404 MK2 Simple Converter")
         title.setObjectName("titleLabel")
-        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title.setFixedHeight(32)
-        root.addWidget(title)
+        title.setAlignment(Qt.AlignCenter)
+        main_layout.addWidget(title)
 
-        # FILES | OUTPUT | PROGRESS (FILES dominant)
-        sections_widget = QWidget()
-        sections = QHBoxLayout(sections_widget)
-        sections.setContentsMargins(0, 0, 0, 0)
-        sections.setSpacing(8)
-        self._sections_widget = sections_widget
-        files_panel = self._build_files_section()
-        output_panel = self._build_output_section()
-        progress_panel = self._build_progress_section()
-        for p in (files_panel, output_panel, progress_panel):
-            p.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        self._panels = (files_panel, output_panel, progress_panel)
-        sections.addWidget(files_panel, 44)
-        sections.addWidget(output_panel, 28)
-        sections.addWidget(progress_panel, 28)
-        root.addWidget(sections_widget, 1)
+        # Drop zone / Queue
+        queue_group = QGroupBox("Conversion queue")
+        queue_layout = QVBoxLayout(queue_group)
 
-        # Footer: target format
-        specs_text = (
-            f"{SP404_SPEC['recommended_sample_rate']} Hz | "
-            f"{SP404_SPEC['bit_depth']}-bit | "
-            f"{'Stereo' if SP404_SPEC['channels'] == 2 else 'Mono'} | "
-            f"{SP404_SPEC['codec']} | .wav"
-        )
-        specs_label = QLabel(specs_text)
-        specs_label.setObjectName("footerLabel")
-        specs_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        specs_label.setFixedHeight(15)
-        root.addWidget(specs_label)
-
-    def _build_files_section(self) -> QGroupBox:
-        panel = QGroupBox("FILES")
-
-        layout = QVBoxLayout(panel)
-        layout.setSpacing(6)
-        layout.setContentsMargins(8, 8, 8, 8)
-
-        # Drop zone (compact, ~280-300 px tall)
         self.file_list = DropListWidget()
         self.file_list.files_dropped.connect(self.add_files)
-        self.file_list.setMinimumHeight(150)
-        self.file_list.setMaximumHeight(160)
-        self.file_list.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.MinimumExpanding)
-        layout.addWidget(self.file_list)
+        self.file_list.setMinimumHeight(140)
+        queue_layout.addWidget(self.file_list)
 
+        # Manual folder selection
+        manual_controls = QHBoxLayout()
         self.browse_folder_btn = QPushButton("Add folder")
-        self.browse_folder_btn.setFixedHeight(32)
         self.browse_folder_btn.clicked.connect(self.browse_folder_manually)
-        self.browse_folder_btn.setToolTip("Add a folder of samples")
-        layout.addWidget(self.browse_folder_btn)
+        self.browse_folder_btn.setToolTip("Add")
+        manual_controls.addWidget(self.browse_folder_btn)
+        queue_layout.addLayout(manual_controls)
 
-        controls = QHBoxLayout()
-        controls.setSpacing(8)
+        # Queue controls
+        queue_controls = QHBoxLayout()
         self.clear_btn = QPushButton("Clear")
         self.clear_btn.clicked.connect(self.clear_queue)
         self.remove_btn = QPushButton("Delete selected")
         self.remove_btn.clicked.connect(self.remove_selected)
-        self.clear_btn.setFixedHeight(32)
-        self.remove_btn.setFixedHeight(32)
-        controls.addWidget(self.clear_btn)
-        controls.addWidget(self.remove_btn)
-        controls.addStretch(1)
-        layout.addLayout(controls)
+        queue_controls.addWidget(self.clear_btn)
+        queue_controls.addWidget(self.remove_btn)
+        queue_controls.addStretch()
+        queue_layout.addLayout(queue_controls)
 
-        return panel
+        main_layout.addWidget(queue_group)
 
-    def _build_output_section(self) -> QGroupBox:
-        panel = QGroupBox("OUTPUT")
-
-        layout = QVBoxLayout(panel)
-        layout.setSpacing(6)
-        layout.setContentsMargins(8, 8, 8, 8)
-
-        # Output selector row (~42 px tall box)
-        row = QWidget()
-        row.setObjectName("outputRow")
-        row.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        row.setFixedHeight(38)
-        row_layout = QHBoxLayout(row)
-        row_layout.setSpacing(0)
-        row_layout.setContentsMargins(12, 0, 4, 0)
-
+        # Output directory
+        output_group = QGroupBox("Output Folder")
+        output_layout = QVBoxLayout(output_group)
+        output_row = QHBoxLayout()
         self.output_label = QLabel("Same folder as source")
-        self.output_label.setObjectName("outputFieldText")
-        self.output_label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
-        row_layout.addWidget(self.output_label, 1)
-
-        self.browse_btn = QPushButton("Browse")
+        self.output_label.setObjectName("statusLabel")
+        self.output_label.setWordWrap(True)
+        self.browse_btn = QPushButton("Output folder")
         self.browse_btn.clicked.connect(self.choose_output_dir)
-        row_layout.addWidget(self.browse_btn)
-        layout.addWidget(row)
+        output_row.addWidget(self.output_label, 1)
+        output_row.addWidget(self.browse_btn)
+        output_layout.addLayout(output_row)
 
         self.mirror_cb = QCheckBox("Preserve source folder structure")
-        self.mirror_cb.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
         self.mirror_cb.setChecked(True)
         self.mirror_cb.setToolTip(
             "If enabled, converted files are saved by replicating the "
@@ -353,45 +301,53 @@ class MainWindow(QMainWindow):
             "If no output folder is specified, a folder named '<source>_sp' is created next to each "
             "source folder with the same structure."
         )
-        layout.addWidget(self.mirror_cb)
+        output_layout.addWidget(self.mirror_cb)
+        main_layout.addWidget(output_group)
 
-        layout.addStretch(1)
-        return panel
-
-    def _build_progress_section(self) -> QGroupBox:
-        panel = QGroupBox("PROGRESS")
-
-        layout = QVBoxLayout(panel)
-        layout.setSpacing(8)
-        layout.setContentsMargins(10, 12, 10, 12)
+        # Progress
+        progress_group = QGroupBox("Progress")
+        progress_layout = QVBoxLayout(progress_group)
 
         self.overall_progress = QProgressBar()
         self.overall_progress.setRange(0, 100)
         self.overall_progress.setValue(0)
-        self.overall_progress.setFormat("%p%")
-        self.overall_progress.setTextVisible(True)
-        self.overall_progress.setFixedHeight(28)
-        layout.addWidget(self.overall_progress)
+        progress_layout.addWidget(self.overall_progress)
 
         self.status_label = QLabel("Ready")
         self.status_label.setObjectName("statusLabel")
-        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.status_label.setAlignment(Qt.AlignCenter)
         self.status_label.setWordWrap(True)
-        layout.addWidget(self.status_label)
+        progress_layout.addWidget(self.status_label)
 
-        layout.addStretch(1)
+        main_layout.addWidget(progress_group)
 
-        self.convert_btn = QPushButton("START")
+        # Convert button
+        self.convert_btn = QPushButton("Start")
         self.convert_btn.setObjectName("convertBtn")
-        self.convert_btn.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
-        self.convert_btn.setIconSize(QSize(15, 15))
+        self.convert_btn.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
+        self.convert_btn.setIconSize(QSize(20, 20))
         self.convert_btn.clicked.connect(self.start_conversion)
         self.convert_btn.setEnabled(False)
-        self.convert_btn.setMinimumHeight(30)
-        self.convert_btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        layout.addWidget(self.convert_btn)
+        main_layout.addWidget(self.convert_btn, alignment=Qt.AlignCenter)
 
-        return panel
+        # Specs info
+        specs_text = (
+            f"{SP404_SPEC['recommended_sample_rate']} Hz | "
+            f"{SP404_SPEC['bit_depth']}-bit | "
+            f"{'Stereo' if SP404_SPEC['channels'] == 2 else 'Mono'} | "
+            f"{SP404_SPEC['codec']} | .wav"
+        )
+        specs_label = QLabel(specs_text)
+        specs_label.setObjectName("statusLabel")
+        specs_label.setAlignment(Qt.AlignCenter)
+        specs_label.setWordWrap(True)
+        main_layout.addWidget(specs_label)
+
+        # The queue is the flexible element: it absorbs extra vertical space
+        # while every other section keeps its natural size and place.
+        main_layout.setStretch(main_layout.indexOf(queue_group), 1)
+        main_layout.setStretch(main_layout.indexOf(output_group), 0)
+        main_layout.setStretch(main_layout.indexOf(progress_group), 0)
 
     def dragEnterEvent(self, event: QDragEnterEvent):
         if event.mimeData().hasUrls():
@@ -465,29 +421,21 @@ class MainWindow(QMainWindow):
         for parent in order:
             items = groups[parent]
             header = QListWidgetItem(self.group_label(items[0][0], items[0][1]))
-            header.setForeground(QColor("#e8a33d"))
+            header.setForeground(QColor("#f0c37b"))
             font = header.font()
             font.setBold(True)
             header.setFont(font)
-            header.setFlags(Qt.ItemFlag.ItemIsEnabled)  # header not selectable
+            header.setFlags(Qt.ItemIsEnabled)  # header not selectable
             header.setToolTip(f"{len(items)} samples en {parent}")
             self.file_list.addItem(header)
 
             for f, root in items:
-                item = QListWidgetItem(f.name)
-                item.setData(Qt.ItemDataRole.UserRole, (f, root))
+                item = QListWidgetItem(f"­ƒÄÁ  {f.name}")
+                item.setData(Qt.UserRole, (f, root))
                 item.setToolTip(str(f))
                 self.file_list.addItem(item)
 
         self.file_list.setUpdatesEnabled(True)
-        self._update_drop_zone_height()
-
-    def _update_drop_zone_height(self):
-        """Compact drop zone when empty; expand when the queue has files."""
-        if self.file_list.count() > 0:
-            self.file_list.setMaximumHeight(16777215)
-        else:
-            self.file_list.setMaximumHeight(160)
 
     @staticmethod
     def group_label(file_path: Path, source_root: Optional[Path]) -> str:
@@ -497,16 +445,16 @@ class MainWindow(QMainWindow):
             try:
                 rel = parent.relative_to(source_root)
                 if rel == Path("."):
-                    return f"{source_root.name}"
-                return f"{source_root.name}\\{rel}"
+                    return f"­ƒôü  {source_root.name}"
+                return f"­ƒôü  {source_root.name}\\{rel}"
             except ValueError:
                 pass
-        return str(parent)
+        return f"­ƒôü  {parent}"
 
     def remove_selected(self):
         """Remove selected items from queue."""
         for item in self.file_list.selectedItems():
-            pair = item.data(Qt.ItemDataRole.UserRole)
+            pair = item.data(Qt.UserRole)
             if pair in self.pending_files:
                 self.pending_files.remove(pair)
         self.rebuild_list()
@@ -523,11 +471,7 @@ class MainWindow(QMainWindow):
         dir_path = QFileDialog.getExistingDirectory(self, "Set output folder")
         if dir_path:
             self.output_dir = Path(dir_path)
-            elided = self.output_label.fontMetrics().elidedText(
-                str(self.output_dir), Qt.TextElideMode.ElideMiddle, 260
-            )
-            self.output_label.setText(elided)
-            self.output_label.setToolTip(str(self.output_dir))
+            self.output_label.setText(f"­ƒôü  {self.output_dir}")
 
     def browse_folder_manually(self):
         """Manually browse and add files from a folder."""
@@ -539,7 +483,7 @@ class MainWindow(QMainWindow):
             found = find_audio_files(folder, recursive=True)
             if found:
                 self.add_files(found)
-                self.status_label.setText(f"Added {len(found)} from {folder.name}")
+                self.status_label.setText(f"Ô£ô  added {len(found)} from {folder.name}")
             else:
                 QMessageBox.information(
                     self,
@@ -610,10 +554,9 @@ class MainWindow(QMainWindow):
     def on_file_finished(self, result: ConversionResult):
         """Handle single file conversion result."""
         if result.success:
-            out_name = result.output_path.name if result.output_path else result.input_path.name
-            self.status_label.setText(f"{result.input_path.name} -> {out_name}")
+            self.status_label.setText(f"Ô£ô  {result.input_path.name} ÔåÆ {result.output_path.name}")
         else:
-            self.status_label.setText(f"{result.input_path.name}: {result.error}")
+            self.status_label.setText(f"Ô£ù  {result.input_path.name}: {result.error}")
 
     @Slot(int, int)
     def on_progress_update(self, current: int, total: int):

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build a standalone .exe for SP-404 MK2 Converter using PyInstaller.
+"""Build a standalone .exe for SP-404 MK2 Simple Converter using PyInstaller.
 
 Bundles FFmpeg (ffmpeg.exe + ffprobe.exe) inside the executable so the result
 is fully portable and doesn't need FFmpeg installed on the target machine.

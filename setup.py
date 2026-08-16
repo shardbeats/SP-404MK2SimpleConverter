@@ -25,7 +25,7 @@ setup(
     ),
     long_description=None,
     long_description_content_type="text/markdown",
-    author="SP-404 MK2 Converter",
+    author="SP-404 MK2 Simple Converter",
     license="MIT",
     py_modules=["gui", "converter"],
     data_files=DATA_FILES,
