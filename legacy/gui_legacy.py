@@ -539,12 +539,12 @@ class MainWindow(QMainWindow):
         """Determine the base folder where the converted file will be placed.
 
         With an output folder + "preserve structure": the whole source pack is
-        mirrored inside the output (output/<pack>/<subfolders>/...). Without an
-        output folder: a <pack>_sp mirror is created next to the source.
+        mirrored inside the output as <pack>_sp (output/<pack>_sp/<subfolders>/...).
+        Without an output folder: a <pack>_sp mirror is created next to the source.
         """
         if self.output_dir is not None:
             if preserve_structure and source_root is not None:
-                return self.output_dir / source_root.name
+                return self.output_dir / f"{source_root.name}_sp"
             return self.output_dir
         if preserve_structure and source_root is not None:
             return source_root.parent / f"{source_root.name}_sp"
