@@ -69,7 +69,7 @@ Or just run the compiled `SP404Converter.exe` (see build instructions below).
    - With an output folder selected: the whole source folder is recreated inside the output folder - `output/<pack>/<subfolders>/...` - with the converted files in place (e.g. `Out/Boombap/Bass/kick_sp.wav`).
    - Without an output folder: a `<source>_sp` folder is created next to each source folder, mirroring its structure.
    - Disabled: every converted file is saved flat in the output folder.
-4. Click **CONVERT ALL**.
+4. Click **START**.
 5. Converted files get the `_sp.wav` suffix.
 
 > **Note for Windows:** if the app is run as Administrator, Windows blocks dragging files from File Explorer (the forbidden cursor 🚫 is shown). Run it normally; the app warns you automatically if it detects elevated privileges.
