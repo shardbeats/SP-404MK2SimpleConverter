@@ -119,9 +119,3 @@ sp404_converter/
  README.md
 ```
 
-## Keyboard shortcuts
-- `Delete` / `Supr` - Remove selected items from the queue
-- `Ctrl+A` - Select all
-- `Escape` - Clear the selection
-
-
