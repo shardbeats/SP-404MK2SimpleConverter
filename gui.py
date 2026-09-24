@@ -538,7 +538,7 @@ class MainWindow(QMainWindow):
             folder = Path(folder_path)
             found = find_audio_files(folder, recursive=True)
             if found:
-                self.add_files(found)
+                self.add_files([folder])
                 self.status_label.setText(f"Added {len(found)} from {folder.name}")
             else:
                 QMessageBox.information(
