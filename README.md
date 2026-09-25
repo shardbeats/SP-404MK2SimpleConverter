@@ -105,6 +105,18 @@ Without `icon.ico` the build falls back to the default PyInstaller icon.
 ## Supported input formats
 `.wav`, `.mp3`, `.flac`, `.ogg`, `.m4a`, `.aac`, `.aiff`, `.aif`, `.wma`, `.opus`, `.webm`
 
+## Tests
+```
+pip install -r requirements-dev.txt
+python -m pytest tests -q
+```
+
+41 tests covering: SP-404 spec table, binary resolution, ffmpeg command
+structure, ffprobe metadata, per-rule compatibility detection, output-path
+resolution, file discovery and end-to-end conversion. The ffmpeg integration
+tests generate tiny tones on the fly (no audio fixtures in the repo) and
+skip gracefully if ffmpeg is not on PATH.
+
 ## Project structure
 ```
 sp404_converter/
