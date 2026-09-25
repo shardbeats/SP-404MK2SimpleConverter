@@ -94,11 +94,20 @@ def get_audio_info(file_path: Path) -> dict:
         for stream in data.get("streams", []):
             if stream.get("codec_type") == "audio":
                 sample_fmt = stream.get("sample_fmt", "")
-                bit_depth = 16 if "s16" in sample_fmt else "unknown"
-                if "s24" in sample_fmt:
-                    bit_depth = 24
-                if "s32" in sample_fmt:
-                    bit_depth = 32
+                # Prefer the real bit depth when ffprobe reports it: for
+                # 24-bit PCM ffprobe decodes into s32 containers, so
+                # sample_fmt alone ("s32") would misdetect 24-bit as 32-bit.
+                bit_depth = stream.get("bits_per_sample") or stream.get("bits_per_raw_sample")
+                try:
+                    bit_depth = int(bit_depth) if bit_depth else None
+                except (TypeError, ValueError):
+                    bit_depth = None
+                if bit_depth not in (8, 16, 24, 32):
+                    bit_depth = 16 if "s16" in sample_fmt else "unknown"
+                    if "s24" in sample_fmt:
+                        bit_depth = 24
+                    if "s32" in sample_fmt:
+                        bit_depth = 32
 
                 return {
                     "sample_rate": int(stream.get("sample_rate", 0)),
