@@ -63,7 +63,7 @@ won't break each other.
   `test_compatible_24bit_file_is_copied_not_reencoded` will tell you if the
   bug is back (24-bit files would get converted instead of copied).
 - The app bundles FFmpeg **inside** the exe (conscious tradeoff:
-  full portability for ~100 MB). `build_exe.py` warns when it can't find
+  full portability for ~200 MB). `build_exe.py` warns when it can't find
   the binaries on PATH, and the exe comes out **non-portable**.
 
 ## 5. Rebuilding the portable exe
