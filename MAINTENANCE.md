@@ -77,16 +77,7 @@ python build_exe.py   # builds dist\SP404Converter.exe
 - Quick check: drop a folder with 1 compatible WAV (must be copied)
   and 1 MP3 (must become `*_sp.wav`).
 
-## 6. Release checklist
-
-1. `git status` free of artifacts (`build/`, `dist/`, `.venv/`, `*.log`).
-2. `python -m pytest tests -q` green (and green CI on GitHub).
-3. README up to date (supported formats = `find_audio_files` + `SP404_SPEC`).
-4. Test the exe on a clean PC/folder: compatible→copy, MP3→convert,
-   structure preserved with and without output folder.
-5. Upload the exe to GitHub Releases (never committed: `dist/` is ignored).
-
-## 7. Decided behaviors (not bugs)
+## 6. Decided behaviors (not bugs)
 
 - **Compatible = copy, not convert.** If it already meets the SP-404 spec
   (listed rate, 16/24-bit, mono or stereo, PCM), it's copied byte for byte.
@@ -97,7 +88,7 @@ python build_exe.py   # builds dist\SP404Converter.exe
 - **Stateless.** The app stores no settings or history; there is nothing
   to migrate or back up beyond the code (GitHub).
 
-## 8. Tests
+## 7. Tests
 
 ```
 pip install -r requirements-dev.txt
@@ -108,4 +99,4 @@ python -m pytest tests -q
 per-rule compatibility detection, output paths, file discovery and
 end-to-end conversion with on-the-fly generated tones (no audio fixtures
 in the repo). Integration tests skip automatically when ffmpeg is not on
-PATH. The GUI is not tested (manual check with §6 instead).
+PATH. The GUI is not tested (manual verification instead).
