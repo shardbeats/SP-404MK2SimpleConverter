@@ -7,11 +7,12 @@ Convert your sound libraries (drum kits, sample packs) to a format compatible wi
 - **Bit depth:** 16-bit or 24-bit
 - **Channels:** Mono (1) or Stereo (2)
 - **Codec:** PCM signed 16-bit or 24-bit little-endian or big-endian
-- **Container:** WAV (recommended: 44.1 kHz, 16-bit, stereo)
+- **Container:** WAV (recommended: 48 kHz, 16-bit, stereo — the MK2 works internally at 48 kHz/16-bit)
 
 ## How files are handled
-- **Already compatible:** automatically copied (no conversion) when they already meet the requirements.
-- **Needs conversion:** converted to 44.1 kHz, 16-bit, stereo PCM WAV.
+- **Already at target:** automatically copied (no conversion) when they already match the selected sample rate and meet the requirements.
+- **Needs conversion:** converted to the selected rate (default 48 kHz), 16-bit, stereo PCM WAV.
+- **Force to rate:** a compatible file at a different rate (e.g. 44.1 kHz with target 48 kHz) is resampled so the whole pack ends up uniform.
 - **Compressed formats (MP3, AAC, etc.):** converted to the target format.
 - **Already-converted files (`*_sp.wav`)** are skipped automatically, so a "mirror" folder is never re-converted.
 
@@ -69,8 +70,9 @@ Or just run the compiled `SP404Converter.exe` (see build instructions below).
    - With an output folder selected: the whole source folder is recreated inside the output folder - `output/<pack>/<subfolders>/...` - with the converted files in place (e.g. `Out/Boombap/Bass/kick_sp.wav`).
    - Without an output folder: a `<source>_sp` folder is created next to each source folder, mirroring its structure.
    - Disabled: every converted file is saved flat in the output folder.
-4. Click **START**.
-5. Converted files get the `_sp.wav` suffix.
+4. (Optional) Choose the **sample rate**: `48 000 Hz (SP-404 native)` by default, or `44 100 Hz (legacy)` for DAW-friendly packs.
+5. Click **START**.
+6. Converted files get the `_sp.wav` suffix.
 
 > **Note for Windows:** if the app is run as Administrator, Windows blocks dragging files from File Explorer (the forbidden cursor 🚫 is shown). Run it normally; the app warns you automatically if it detects elevated privileges.
 

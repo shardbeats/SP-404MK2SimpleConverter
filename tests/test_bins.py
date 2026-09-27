@@ -60,3 +60,10 @@ def test_build_ffmpeg_cmd_targets_sp404_spec(tmp_path: Path):
     assert cmd[-1] == str(dst)
     # Pure linear conversion: no volume/compression filters.
     assert "-af" not in cmd
+
+
+def test_build_ffmpeg_cmd_honors_explicit_rate(tmp_path: Path):
+    src = tmp_path / "kick.mp3"
+    dst = tmp_path / "kick_sp.wav"
+    assert build_ffmpeg_cmd(src, dst, 44100)[build_ffmpeg_cmd(src, dst, 44100).index("-ar") + 1] == "44100"
+    assert build_ffmpeg_cmd(src, dst, 48000)[build_ffmpeg_cmd(src, dst, 48000).index("-ar") + 1] == "48000"

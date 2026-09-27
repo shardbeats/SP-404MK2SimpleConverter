@@ -12,13 +12,13 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QListWidget, QListWidgetItem, QPushButton, QLabel, QProgressBar,
     QGroupBox, QFileDialog, QMessageBox, QScrollArea, QStyle, QCheckBox,
-    QAbstractItemView, QSizePolicy,
+    QAbstractItemView, QSizePolicy, QComboBox,
 )
 from PySide6.QtGui import QDragEnterEvent, QDragMoveEvent, QDropEvent, QIcon, QFont, QColor, QPainter
 
 from converter import (
     convert_file, find_audio_files, check_ffmpeg, ConversionResult,
-    SP404_SPEC,
+    SP404_SPEC, TARGET_SAMPLE_RATES,
 )
 
 
@@ -41,6 +41,7 @@ class ConvertWorker(QRunnable):
         preserve_structure: bool = True,
         index: int = 0,
         total: int = 0,
+        target_sample_rate: Optional[int] = None,
     ):
         super().__init__()
         self.input_path = input_path
@@ -49,6 +50,7 @@ class ConvertWorker(QRunnable):
         self.preserve_structure = preserve_structure
         self.index = index
         self.total = total
+        self.target_sample_rate = target_sample_rate or int(SP404_SPEC["recommended_sample_rate"])
         self.signals = WorkerSignals()
 
     def run(self):
@@ -58,6 +60,7 @@ class ConvertWorker(QRunnable):
             self.output_dir,
             self.source_root,
             self.preserve_structure,
+            self.target_sample_rate,
         )
         self.signals.finished.emit(result)
         self.signals.progress.emit(self.index, self.total)
@@ -269,18 +272,13 @@ class MainWindow(QMainWindow):
         sections.addWidget(progress_panel, 28)
         root.addWidget(sections_widget, 1)
 
-        # Footer: target format
-        specs_text = (
-            f"{SP404_SPEC['recommended_sample_rate']} Hz | "
-            f"{SP404_SPEC['bit_depth']}-bit | "
-            f"{'Stereo' if SP404_SPEC['channels'] == 2 else 'Mono'} | "
-            f"{SP404_SPEC['codec']} | .wav"
-        )
-        specs_label = QLabel(specs_text)
-        specs_label.setObjectName("footerLabel")
-        specs_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        specs_label.setFixedHeight(15)
-        root.addWidget(specs_label)
+        # Footer: target format (updates with the sample-rate selector)
+        self.specs_label = QLabel("")
+        self.specs_label.setObjectName("footerLabel")
+        self.specs_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.specs_label.setFixedHeight(15)
+        root.addWidget(self.specs_label)
+        self.update_footer_label()
 
     def _build_files_section(self) -> QGroupBox:
         panel = QGroupBox("FILES")
@@ -354,6 +352,31 @@ class MainWindow(QMainWindow):
             "source folder with the same structure."
         )
         layout.addWidget(self.mirror_cb)
+
+        # Sample-rate selector (SP-404 MK2 runs at 48 kHz internally)
+        rate_row = QHBoxLayout()
+        rate_row.setSpacing(8)
+        rate_label = QLabel("Sample rate:")
+        rate_label.setObjectName("statusLabel")
+        rate_row.addWidget(rate_label)
+        self.sample_rate_cb = QComboBox()
+        self.sample_rate_cb.setToolTip(
+            "Target sample rate. The SP-404 MK2 works internally at "
+            "48 kHz / 16-bit, so 48 kHz is the native choice.\n"
+            "Every file is forced to this rate (compatible files at a "
+            "different rate are resampled, not just copied)."
+        )
+        for rate in TARGET_SAMPLE_RATES:
+            if rate == 48000:
+                self.sample_rate_cb.addItem("48 000 Hz (SP-404 native)", rate)
+            elif rate == 44100:
+                self.sample_rate_cb.addItem("44 100 Hz (legacy)", rate)
+            else:
+                self.sample_rate_cb.addItem(f"{rate} Hz", rate)
+        self.sample_rate_cb.setCurrentIndex(0)
+        self.sample_rate_cb.currentIndexChanged.connect(self.update_footer_label)
+        rate_row.addWidget(self.sample_rate_cb, 1)
+        layout.addLayout(rate_row)
 
         layout.addStretch(1)
         return panel
@@ -553,6 +576,26 @@ class MainWindow(QMainWindow):
         self.convert_btn.setEnabled(has_files)
         self.convert_btn.setText(f"START ({len(self.pending_files)})" if has_files else "START")
 
+    def selected_sample_rate(self) -> int:
+        """Target sample rate chosen in the selector."""
+        data = self.sample_rate_cb.currentData()
+        try:
+            return int(data)
+        except (TypeError, ValueError):
+            return int(SP404_SPEC["recommended_sample_rate"])
+
+    def update_footer_label(self):
+        """Refresh the footer to show the current conversion target."""
+        rate = self.selected_sample_rate() if hasattr(self, "sample_rate_cb") else int(
+            SP404_SPEC["recommended_sample_rate"]
+        )
+        self.specs_label.setText(
+            f"{rate} Hz | "
+            f"{SP404_SPEC['bit_depth']}-bit | "
+            f"{'Stereo' if SP404_SPEC['channels'] == 2 else 'Mono'} | "
+            f"{SP404_SPEC['codec']} | .wav"
+        )
+
     def start_conversion(self):
         """Start batch conversion."""
         if not self.pending_files:
@@ -563,6 +606,7 @@ class MainWindow(QMainWindow):
         self.remove_btn.setEnabled(False)
         self.browse_btn.setEnabled(False)
         self.mirror_cb.setEnabled(False)
+        self.sample_rate_cb.setEnabled(False)
         self.file_list.setEnabled(False)
 
         self.overall_progress.setRange(0, len(self.pending_files))
@@ -570,6 +614,7 @@ class MainWindow(QMainWindow):
         self.status_label.setText("Starting...")
 
         preserve = self.mirror_cb.isChecked()
+        target_rate = self.selected_sample_rate()
 
         # Submit workers to thread pool
         for i, (file_path, source_root) in enumerate(self.pending_files):
@@ -580,6 +625,7 @@ class MainWindow(QMainWindow):
                 preserve,
                 i + 1,
                 len(self.pending_files),
+                target_rate,
             )
             worker.signals.finished.connect(self.on_file_finished)
             worker.signals.progress.connect(self.on_progress_update)
@@ -634,6 +680,7 @@ class MainWindow(QMainWindow):
         self.remove_btn.setEnabled(True)
         self.browse_btn.setEnabled(True)
         self.mirror_cb.setEnabled(True)
+        self.sample_rate_cb.setEnabled(True)
         self.file_list.setEnabled(True)
         self.status_label.setText("Conversion complete!")
         QMessageBox.information(self, "Complete", "All files have been processed.")

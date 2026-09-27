@@ -271,3 +271,34 @@ QCheckBox:disabled {
 QCheckBox:disabled::indicator {
     border-color: #383B40;
 }
+
+/* ---- Sample-rate selector ---- */
+QComboBox {
+    background-color: #202124;
+    border: 1px solid #45474A;
+    border-radius: 4px;
+    padding: 6px 10px;
+    color: #E5E5E5;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+QComboBox:hover {
+    border-color: #F5A623;
+    color: #F5A623;
+}
+
+QComboBox:disabled {
+    background-color: #1C1D1F;
+    border-color: #45474A;
+    color: #383B40;
+}
+
+QComboBox QAbstractItemView {
+    background-color: #202124;
+    border: 1px solid #45474A;
+    selection-background-color: #33363B;
+    selection-color: #F5A623;
+    color: #E5E5E5;
+    outline: none;
+}

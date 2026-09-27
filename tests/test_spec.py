@@ -7,7 +7,7 @@ from converter import SP404_SPEC, ConversionResult
 
 
 def test_spec_target_values():
-    assert SP404_SPEC["recommended_sample_rate"] == 44100
+    assert SP404_SPEC["recommended_sample_rate"] == 48000
     assert SP404_SPEC["channels"] == 2
     assert SP404_SPEC["bit_depth"] == 16
     assert SP404_SPEC["codec"] == "pcm_s16le"

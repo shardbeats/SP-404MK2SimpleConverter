@@ -22,14 +22,20 @@ class ConversionResult:
 
 
 # SP-404 MK2 compatible format specs
+# Note: the MK2 works internally at 48 kHz / 16-bit (Roland: "The sample is
+# converted to 48 kHz/16-bit when imported"), so 48000 is the default target.
 SP404_SPEC = {
     "sample_rates": [16000, 22050, 32000, 44100, 48000, 88200, 96000, 176400, 192000],
     "bit_depth": 16,
     "channels": 2,  # stereo
     "codec": "pcm_s16le",
     "format": "wav",
-    "recommended_sample_rate": 44100,
+    "recommended_sample_rate": 48000,
 }
+
+# Rates offered in the GUI selector. Kept to the two most useful ones:
+# 48 kHz (native) and 44.1 kHz (legacy/DAW-friendly).
+TARGET_SAMPLE_RATES = [48000, 44100]
 
 
 def ffmpeg_bin() -> str:
@@ -56,12 +62,15 @@ def ffprobe_bin() -> str:
     return "ffprobe"
 
 
-def build_ffmpeg_cmd(input_path: Path, output_path: Path) -> list[str]:
+def build_ffmpeg_cmd(
+    input_path: Path, output_path: Path, sample_rate: Optional[int] = None
+) -> list[str]:
     """Build ffmpeg command for SP-404 MK2 compatibility."""
+    target_rate = sample_rate or SP404_SPEC["recommended_sample_rate"]
     return [
         ffmpeg_bin(), "-y",  # overwrite output
         "-i", str(input_path),
-        "-ar", str(SP404_SPEC["recommended_sample_rate"]),
+        "-ar", str(target_rate),
         "-ac", str(SP404_SPEC["channels"]),
         "-sample_fmt", "s16",  # 16-bit
         "-c:a", SP404_SPEC["codec"],
@@ -143,9 +152,23 @@ def is_compatible_format(file_path: Path) -> bool:
     return sample_rate_ok and bit_depth_ok and channels_ok and codec_ok
 
 
-def needs_conversion(file_path: Path) -> bool:
-    """Check if file needs conversion."""
-    return not is_compatible_format(file_path)
+def needs_conversion(file_path: Path, target_sample_rate: Optional[int] = None) -> bool:
+    """Check if file needs conversion.
+
+    A file needs conversion when it is not SP-404 compatible at all, OR when
+    it is compatible but its sample rate differs from the selected target
+    ("force to rate" mode, so a whole pack ends up uniform).
+    """
+    if not is_compatible_format(file_path):
+        return True
+    if target_sample_rate is not None:
+        info = get_audio_info(file_path)
+        try:
+            if int(info.get("sample_rate", 0)) != int(target_sample_rate):
+                return True
+        except (TypeError, ValueError):
+            return True
+    return False
 
 
 def compute_output_path(
@@ -178,24 +201,28 @@ def convert_file(
     output_dir: Path,
     source_root: Optional[Path] = None,
     preserve_structure: bool = False,
+    target_sample_rate: Optional[int] = None,
 ) -> ConversionResult:
     """Convert single file to SP-404 MK2 format."""
     if not input_path.exists():
         return ConversionResult(False, input_path, error="Input file not found")
 
+    if target_sample_rate is None:
+        target_sample_rate = int(SP404_SPEC["recommended_sample_rate"])
+
     # Determine output path
     output_path = compute_output_path(input_path, output_dir, source_root, preserve_structure)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Skip if already compatible
-    if not needs_conversion(input_path):
+    # Skip if already at target (copy instead of convert)
+    if not needs_conversion(input_path, target_sample_rate):
         # Copy instead of convert
         import shutil
         shutil.copy2(input_path, output_path)
         return ConversionResult(True, input_path, output_path)
 
     # Run ffmpeg conversion
-    cmd = build_ffmpeg_cmd(input_path, output_path)
+    cmd = build_ffmpeg_cmd(input_path, output_path, target_sample_rate)
     try:
         result = subprocess.run(
             cmd,
