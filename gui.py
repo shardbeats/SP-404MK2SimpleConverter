@@ -1,6 +1,7 @@
 """SP-404 MK2 Simple Converter - GUI using PySide6."""
 
 import sys
+import threading
 from pathlib import Path
 from typing import Optional
 
@@ -18,7 +19,7 @@ from PySide6.QtGui import QDragEnterEvent, QDragMoveEvent, QDropEvent, QIcon, QF
 
 from converter import (
     convert_file, find_audio_files, check_ffmpeg, ConversionResult,
-    SP404_SPEC, TARGET_SAMPLE_RATES,
+    SP404_SPEC, TARGET_SAMPLE_RATES, SUPPORTED_EXTENSIONS, MAX_QUEUE_SIZE,
 )
 
 
@@ -42,6 +43,7 @@ class ConvertWorker(QRunnable):
         index: int = 0,
         total: int = 0,
         target_sample_rate: Optional[int] = None,
+        cancel_event: Optional[threading.Event] = None,
     ):
         super().__init__()
         self.input_path = input_path
@@ -51,9 +53,16 @@ class ConvertWorker(QRunnable):
         self.index = index
         self.total = total
         self.target_sample_rate = target_sample_rate or int(SP404_SPEC["recommended_sample_rate"])
+        self.cancel_event = cancel_event
         self.signals = WorkerSignals()
 
     def run(self):
+        if self.cancel_event is not None and self.cancel_event.is_set():
+            self.signals.finished.emit(
+                ConversionResult(False, self.input_path, error="Cancelled")
+            )
+            self.signals.progress.emit(self.index, self.total)
+            return
         self.signals.started.emit(self.input_path)
         result = convert_file(
             self.input_path,
@@ -61,6 +70,7 @@ class ConvertWorker(QRunnable):
             self.source_root,
             self.preserve_structure,
             self.target_sample_rate,
+            cancel_event=self.cancel_event,
         )
         self.signals.finished.emit(result)
         self.signals.progress.emit(self.index, self.total)
@@ -217,6 +227,12 @@ class MainWindow(QMainWindow):
         self.output_dir: Optional[Path] = None
         self.thread_pool = QThreadPool()
         self.thread_pool.setMaxThreadCount(2)  # Limit concurrent conversions
+        # Conversion-run state (completion counted, never inferred from order).
+        self._is_converting = False
+        self._completed = 0
+        self._total = 0
+        self._failed = 0
+        self._cancel_event = threading.Event()
 
         # Load stylesheet
         self.load_stylesheet()
@@ -414,6 +430,13 @@ class MainWindow(QMainWindow):
         self.convert_btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         layout.addWidget(self.convert_btn)
 
+        self.cancel_btn = QPushButton("CANCEL")
+        self.cancel_btn.clicked.connect(self.cancel_conversion)
+        self.cancel_btn.setEnabled(False)
+        self.cancel_btn.setMinimumHeight(28)
+        self.cancel_btn.setToolTip("Stop the batch (running files are killed)")
+        layout.addWidget(self.cancel_btn)
+
         return panel
 
     def dragEnterEvent(self, event: QDragEnterEvent):
@@ -442,15 +465,28 @@ class MainWindow(QMainWindow):
             super().dropEvent(event)
 
     def add_files(self, paths: list[Path]):
-        """Add files/folders to conversion queue."""
+        """Add files/folders to conversion queue (bounded + globally deduped)."""
+        if self._is_converting:
+            return
         new_pairs: list[tuple[Path, Optional[Path]]] = []
         for path in paths:
-            if path.is_dir():
-                # Recursively find audio files in folder, remembering the root
-                for f in find_audio_files(path, recursive=True):
-                    new_pairs.append((f, path))
-            elif path.is_file():
-                new_pairs.append((path, None))
+            try:
+                if path.is_dir():
+                    # Recursively find audio files in folder, remembering the root
+                    for f in find_audio_files(path, recursive=True):
+                        new_pairs.append((f, path))
+                elif path.is_file():
+                    # Single files: enforce supported extension + skip symlink escapes.
+                    try:
+                        if path.is_symlink():
+                            continue
+                    except OSError:
+                        continue
+                    if path.suffix.lower() not in SUPPORTED_EXTENSIONS:
+                        continue
+                    new_pairs.append((path, None))
+            except OSError:
+                continue
 
         # Skip files that are already converted versions (*_sp.wav)
         new_pairs = [
@@ -459,14 +495,34 @@ class MainWindow(QMainWindow):
             if not f.stem.lower().endswith("_sp")
         ]
 
-        # Deduplicate while preserving order
+        # Deduplicate against the existing queue AND within the batch.
         seen = set()
+        for f, _root in self.pending_files:
+            try:
+                seen.add(f.resolve())
+            except OSError:
+                seen.add(Path(f))
+        added = 0
         for f, root in new_pairs:
-            resolved = f.resolve()
+            try:
+                resolved = f.resolve()
+            except OSError:
+                continue
             if resolved in seen:
                 continue
+            if len(self.pending_files) >= MAX_QUEUE_SIZE:
+                break
             seen.add(resolved)
             self.pending_files.append((f, root))
+            added += 1
+
+        if len(new_pairs) > added and len(self.pending_files) >= MAX_QUEUE_SIZE:
+            self.status_label.setText(f"Queue capped at {MAX_QUEUE_SIZE} files")
+            QMessageBox.warning(
+                self, "Queue limit",
+                f"The queue is capped at {MAX_QUEUE_SIZE} files to protect "
+                f"CPU/RAM. Add the rest in a second batch.",
+            )
 
         self.rebuild_list()
         self.update_convert_button()
@@ -528,6 +584,8 @@ class MainWindow(QMainWindow):
 
     def remove_selected(self):
         """Remove selected items from queue."""
+        if self._is_converting:
+            return
         for item in self.file_list.selectedItems():
             pair = item.data(Qt.ItemDataRole.UserRole)
             if pair in self.pending_files:
@@ -537,6 +595,8 @@ class MainWindow(QMainWindow):
 
     def clear_queue(self):
         """Clear entire queue."""
+        if self._is_converting:
+            return
         self.pending_files.clear()
         self.rebuild_list()
         self.update_convert_button()
@@ -561,8 +621,11 @@ class MainWindow(QMainWindow):
             folder = Path(folder_path)
             found = find_audio_files(folder, recursive=True)
             if found:
+                # Reuse the scan instead of scanning twice inside add_files.
+                if self._is_converting:
+                    return
                 self.add_files([folder])
-                self.status_label.setText(f"Added {len(found)} from {folder.name}")
+                self.status_label.setText(f"Added {min(len(found), MAX_QUEUE_SIZE)} from {folder.name}")
             else:
                 QMessageBox.information(
                     self,
@@ -572,6 +635,9 @@ class MainWindow(QMainWindow):
 
     def update_convert_button(self):
         """Enable/disable convert button based on queue state."""
+        if self._is_converting:
+            self.convert_btn.setEnabled(False)
+            return
         has_files = len(self.pending_files) > 0
         self.convert_btn.setEnabled(has_files)
         self.convert_btn.setText(f"START ({len(self.pending_files)})" if has_files else "START")
@@ -598,18 +664,26 @@ class MainWindow(QMainWindow):
 
     def start_conversion(self):
         """Start batch conversion."""
-        if not self.pending_files:
+        if not self.pending_files or self._is_converting:
             return
+
+        self._is_converting = True
+        self._completed = 0
+        self._failed = 0
+        self._total = len(self.pending_files)
+        self._cancel_event.clear()
 
         self.convert_btn.setEnabled(False)
         self.clear_btn.setEnabled(False)
         self.remove_btn.setEnabled(False)
         self.browse_btn.setEnabled(False)
+        self.browse_folder_btn.setEnabled(False)
         self.mirror_cb.setEnabled(False)
         self.sample_rate_cb.setEnabled(False)
         self.file_list.setEnabled(False)
+        self.cancel_btn.setEnabled(True)
 
-        self.overall_progress.setRange(0, len(self.pending_files))
+        self.overall_progress.setRange(0, self._total)
         self.overall_progress.setValue(0)
         self.status_label.setText("Starting...")
 
@@ -626,11 +700,24 @@ class MainWindow(QMainWindow):
                 i + 1,
                 len(self.pending_files),
                 target_rate,
+                cancel_event=self._cancel_event,
             )
             worker.signals.finished.connect(self.on_file_finished)
             worker.signals.progress.connect(self.on_progress_update)
             worker.signals.error.connect(self.on_error)
             self.thread_pool.start(worker)
+
+    def cancel_conversion(self):
+        """Request cancellation: queued jobs are dropped, running ffmpeg is killed."""
+        if not self._is_converting:
+            return
+        self._cancel_event.set()
+        try:
+            self.thread_pool.clear()
+        except Exception:
+            pass
+        self.cancel_btn.setEnabled(False)
+        self.status_label.setText("Cancelling... (finishing active files)")
 
     def resolve_output_base(
         self,
@@ -659,31 +746,63 @@ class MainWindow(QMainWindow):
             out_name = result.output_path.name if result.output_path else result.input_path.name
             self.status_label.setText(f"{result.input_path.name} -> {out_name}")
         else:
-            self.status_label.setText(f"{result.input_path.name}: {result.error}")
+            self._failed += 1
+            err = (result.error or "error")[:120]
+            self.status_label.setText(f"{result.input_path.name}: {err}")
 
     @Slot(int, int)
     def on_progress_update(self, current: int, total: int):
-        """Update overall progress bar."""
-        self.overall_progress.setValue(current)
-        if current == total:
+        """Update overall progress bar (count completions, ignore finish order)."""
+        if not self._is_converting:
+            return
+        self._completed += 1
+        span = total if total else self._total
+        self.overall_progress.setRange(0, span)
+        self.overall_progress.setValue(min(self._completed, span))
+        if self._completed >= span:
             self.conversion_complete()
 
     @Slot(str)
     def on_error(self, error: str):
         """Handle worker error."""
-        self.status_label.setText(f"Error: {error}")
+        self.status_label.setText(f"Error: {error[:200]}")
 
     def conversion_complete(self):
         """Called when all conversions finish."""
+        if not self._is_converting:
+            return
+        self._is_converting = False
         self.convert_btn.setEnabled(True)
         self.clear_btn.setEnabled(True)
         self.remove_btn.setEnabled(True)
         self.browse_btn.setEnabled(True)
+        self.browse_folder_btn.setEnabled(True)
         self.mirror_cb.setEnabled(True)
         self.sample_rate_cb.setEnabled(True)
         self.file_list.setEnabled(True)
-        self.status_label.setText("Conversion complete!")
-        QMessageBox.information(self, "Complete", "All files have been processed.")
+        self.cancel_btn.setEnabled(False)
+        ok = self._total - self._failed
+        cancelled = self._cancel_event.is_set()
+        if cancelled:
+            self.status_label.setText(f"Cancelled: {ok} ok, {self._failed} failed/cancelled")
+        else:
+            self.status_label.setText(f"Conversion complete! ({ok} ok, {self._failed} failed)")
+            QMessageBox.information(
+                self, "Complete",
+                f"Processed {self._total} files.\n{ok} OK, {self._failed} failed.",
+            )
+        self.update_convert_button()
+
+    def closeEvent(self, event):
+        """Stop workers cleanly when the window is closed mid-batch."""
+        if self._is_converting:
+            self._cancel_event.set()
+            try:
+                self.thread_pool.clear()
+            except Exception:
+                pass
+            self.thread_pool.waitForDone(2000)
+        super().closeEvent(event)
 
 
 def is_elevated() -> bool:
