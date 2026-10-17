@@ -61,7 +61,7 @@ class ConversionResult:
 # SP-404 MK2 compatible format specs
 # Note: the MK2 works internally at 48 kHz / 16-bit (Roland: "The sample is
 # converted to 48 kHz/16-bit when imported"), so 48000 is the default target.
-SP404_SPEC = {
+TRAKK_SPEC = {
     "sample_rates": [16000, 22050, 32000, 44100, 48000, 88200, 96000, 176400, 192000],
     "bit_depth": 16,
     "channels": 2,  # stereo
@@ -69,6 +69,9 @@ SP404_SPEC = {
     "format": "wav",
     "recommended_sample_rate": 48000,
 }
+
+# Alias de compatibilidad (ex SP404_SPEC → TRAKK_SPEC)
+SP404_SPEC = TRAKK_SPEC
 
 # Rates offered in the GUI selector. Kept to the two most useful ones:
 # 48 kHz (native) and 44.1 kHz (legacy/DAW-friendly).
@@ -114,13 +117,13 @@ def build_ffmpeg_cmd(
     never reads from stdin (so a crafted file can't block on a prompt).
     """
     try:
-        target_rate = int(sample_rate) if sample_rate else int(SP404_SPEC["recommended_sample_rate"])
+        target_rate = int(sample_rate) if sample_rate else int(TRAKK_SPEC["recommended_sample_rate"])
     except (TypeError, ValueError):
-        target_rate = int(SP404_SPEC["recommended_sample_rate"])
-    if target_rate not in SP404_SPEC["sample_rates"]:
+        target_rate = int(TRAKK_SPEC["recommended_sample_rate"])
+    if target_rate not in TRAKK_SPEC["sample_rates"]:
         # Allow the two GUI targets plus spec rates; fall back otherwise
         # (prevents absurd -ar values from ever reaching ffmpeg).
-        target_rate = int(SP404_SPEC["recommended_sample_rate"])
+        target_rate = int(TRAKK_SPEC["recommended_sample_rate"])
     return [
         ffmpeg_bin(),
         "-nostdin", "-hide_banner", "-loglevel", "error",
@@ -128,9 +131,9 @@ def build_ffmpeg_cmd(
         "-i", str(input_path),
         "-vn",  # ignore embedded video/cover art (saves CPU)
         "-ar", str(target_rate),
-        "-ac", str(SP404_SPEC["channels"]),
+        "-ac", str(TRAKK_SPEC["channels"]),
         "-sample_fmt", "s16",  # 16-bit
-        "-c:a", SP404_SPEC["codec"],
+        "-c:a", TRAKK_SPEC["codec"],
         "-threads", str(FFMPEG_THREADS),
         "-t", str(int(MAX_DURATION_SEC)),
         str(output_path),
@@ -226,13 +229,13 @@ def is_compatible_format(file_path: Path, info: Optional[dict] = None) -> bool:
         return False  # Unknown format, needs conversion
 
     # Check sample rate compatibility
-    sample_rate_ok = info.get("sample_rate") in SP404_SPEC["sample_rates"]
+    sample_rate_ok = info.get("sample_rate") in TRAKK_SPEC["sample_rates"]
 
     # Check bit depth compatibility (16-bit or 24-bit)
     bit_depth_ok = info.get("bit_depth") in (16, 24)
 
     # Check channel compatibility (stereo preferred)
-    channels_ok = info.get("channels") == SP404_SPEC["channels"] or info.get("channels") == 1
+    channels_ok = info.get("channels") == TRAKK_SPEC["channels"] or info.get("channels") == 1
 
     # Check codec compatibility (PCM, not compressed)
     codec_ok = info.get("codec") in ("pcm_s16le", "pcm_s16be", "pcm_s24le", "pcm_s24be")
@@ -326,11 +329,11 @@ def convert_file(
         return ConversionResult(False, input_path, error=str(e))
 
     if target_sample_rate is None:
-        target_sample_rate = int(SP404_SPEC["recommended_sample_rate"])
+        target_sample_rate = int(TRAKK_SPEC["recommended_sample_rate"])
     try:
         target_sample_rate = int(target_sample_rate)
     except (TypeError, ValueError):
-        target_sample_rate = int(SP404_SPEC["recommended_sample_rate"])
+        target_sample_rate = int(TRAKK_SPEC["recommended_sample_rate"])
 
     # Determine output path
     try:

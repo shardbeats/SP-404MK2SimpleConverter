@@ -1,4 +1,4 @@
-/* SP-404 MK2 Simple Converter - hardware sampler stylesheet */
+/* TRAKKCONVERTER - hardware sampler stylesheet */
 
 QMainWindow, QWidget {
     background-color: #151617;

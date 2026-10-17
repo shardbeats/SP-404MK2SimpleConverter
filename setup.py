@@ -1,7 +1,7 @@
-"""SP-404 MK2 Simple Converter - pip installation.
+"""TRAKKCONVERTER - pip installation.
 
 Installs the app and its dependencies so it can be launched from anywhere
-with the `sp404-converter` command.
+with the `trakkconverter` command.
 
     pip install .          # or:  pip install -r requirements.txt  (deps only)
 
@@ -17,7 +17,7 @@ DATA_FILES = [
 ]
 
 setup(
-    name="sp404-converter",
+    name="trakkconverter",
     version="1.0.0",
     description=(
         "Convert audio samples to the Roland SP-404 MK2 format "
@@ -25,13 +25,13 @@ setup(
     ),
     long_description=None,
     long_description_content_type="text/markdown",
-    author="SP-404 MK2 Simple Converter",
+    author="TRAKKCONVERTER",
     license="MIT",
     py_modules=["gui", "converter"],
     data_files=DATA_FILES,
     entry_points={
         "console_scripts": [
-            "sp404-converter=gui:main",
+            "trakkconverter=gui:main",
         ],
     },
     python_requires=">=3.10",

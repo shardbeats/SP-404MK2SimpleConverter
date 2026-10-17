@@ -3,19 +3,19 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from converter import SP404_SPEC, ConversionResult
+from converter import TRAKK_SPEC, ConversionResult
 
 
 def test_spec_target_values():
-    assert SP404_SPEC["recommended_sample_rate"] == 48000
-    assert SP404_SPEC["channels"] == 2
-    assert SP404_SPEC["bit_depth"] == 16
-    assert SP404_SPEC["codec"] == "pcm_s16le"
-    assert SP404_SPEC["format"] == "wav"
+    assert TRAKK_SPEC["recommended_sample_rate"] == 48000
+    assert TRAKK_SPEC["channels"] == 2
+    assert TRAKK_SPEC["bit_depth"] == 16
+    assert TRAKK_SPEC["codec"] == "pcm_s16le"
+    assert TRAKK_SPEC["format"] == "wav"
 
 
 def test_spec_sample_rate_list():
-    rates = SP404_SPEC["sample_rates"]
+    rates = TRAKK_SPEC["sample_rates"]
     for expected in (16000, 22050, 32000, 44100, 48000, 88200, 96000, 176400, 192000):
         assert expected in rates
     # Common non-pro-audio rates are rejected.

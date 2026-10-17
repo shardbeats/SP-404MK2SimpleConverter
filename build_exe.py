@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build a standalone .exe for SP-404 MK2 Simple Converter using PyInstaller.
+"""Build a standalone .exe for TRAKKCONVERTER using PyInstaller.
 
 Bundles FFmpeg (ffmpeg.exe + ffprobe.exe) inside the executable so the result
 is fully portable and doesn't need FFmpeg installed on the target machine.
@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-APP_NAME = "SP404Converter"
+APP_NAME = "TRAKKCONVERTER"
 ICON_NAME = "icon.ico"
 
 

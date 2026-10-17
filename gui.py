@@ -1,4 +1,4 @@
-"""SP-404 MK2 Simple Converter - GUI using PySide6."""
+"""TRAKKCONVERTER - GUI using PySide6."""
 
 import sys
 import threading
@@ -19,7 +19,7 @@ from PySide6.QtGui import QDragEnterEvent, QDragMoveEvent, QDropEvent, QIcon, QF
 
 from converter import (
     convert_file, find_audio_files, check_ffmpeg, ConversionResult,
-    SP404_SPEC, TARGET_SAMPLE_RATES, SUPPORTED_EXTENSIONS, MAX_QUEUE_SIZE,
+    TRAKK_SPEC, TARGET_SAMPLE_RATES, SUPPORTED_EXTENSIONS, MAX_QUEUE_SIZE,
 )
 
 
@@ -52,7 +52,7 @@ class ConvertWorker(QRunnable):
         self.preserve_structure = preserve_structure
         self.index = index
         self.total = total
-        self.target_sample_rate = target_sample_rate or int(SP404_SPEC["recommended_sample_rate"])
+        self.target_sample_rate = target_sample_rate or int(TRAKK_SPEC["recommended_sample_rate"])
         self.cancel_event = cancel_event
         self.signals = WorkerSignals()
 
@@ -198,7 +198,7 @@ class DropListWidget(QListWidget):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("SP-404 MK2 Simple Converter")
+        self.setWindowTitle("TRAKKCONVERTER")
         # Accept files dropped anywhere on the window (fallback while the
         # QListWidget underneath handles its own drop area).
         self.setAcceptDrops(True)
@@ -265,7 +265,7 @@ class MainWindow(QMainWindow):
         root.setContentsMargins(16, 8, 16, 8)
 
         # Header
-        title = QLabel("SP-404 MK2 Simple Converter")
+        title = QLabel("TRAKKCONVERTER")
         title.setObjectName("titleLabel")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title.setFixedHeight(32)
@@ -648,18 +648,18 @@ class MainWindow(QMainWindow):
         try:
             return int(data)
         except (TypeError, ValueError):
-            return int(SP404_SPEC["recommended_sample_rate"])
+            return int(TRAKK_SPEC["recommended_sample_rate"])
 
     def update_footer_label(self):
         """Refresh the footer to show the current conversion target."""
         rate = self.selected_sample_rate() if hasattr(self, "sample_rate_cb") else int(
-            SP404_SPEC["recommended_sample_rate"]
+            TRAKK_SPEC["recommended_sample_rate"]
         )
         self.specs_label.setText(
             f"{rate} Hz | "
-            f"{SP404_SPEC['bit_depth']}-bit | "
-            f"{'Stereo' if SP404_SPEC['channels'] == 2 else 'Mono'} | "
-            f"{SP404_SPEC['codec']} | .wav"
+            f"{TRAKK_SPEC['bit_depth']}-bit | "
+            f"{'Stereo' if TRAKK_SPEC['channels'] == 2 else 'Mono'} | "
+            f"{TRAKK_SPEC['codec']} | .wav"
         )
 
     def start_conversion(self):
@@ -825,7 +825,7 @@ def load_app_icon() -> Optional[QIcon]:
 
 def main():
     app = QApplication(sys.argv)
-    app.setApplicationName("SP-404 MK2 Simple Converter")
+    app.setApplicationName("TRAKKCONVERTER")
     app.setApplicationVersion("1.0.0")
 
     app_icon = load_app_icon()

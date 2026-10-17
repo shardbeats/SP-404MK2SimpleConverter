@@ -1,10 +1,10 @@
 @echo off
 setlocal EnableExtensions
-title SP-404 MK2 Simple Converter - Setup
+title TRAKKCONVERTER - Setup
 cd /d "%~dp0"
 
 echo ================================================
-echo   SP-404 MK2 Simple Converter
+echo   TRAKKCONVERTER
 echo   First-run setup + launch
 echo ================================================
 echo.

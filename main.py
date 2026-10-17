@@ -1,4 +1,4 @@
-"""SP-404 MK2 Simple Converter - Entry point."""
+"""TRAKKCONVERTER - Entry point."""
 
 from gui import main
 

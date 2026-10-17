@@ -6,7 +6,7 @@ from pathlib import Path
 
 import converter
 from converter import (
-    SP404_SPEC,
+    TRAKK_SPEC,
     build_ffmpeg_cmd,
     check_ffmpeg,
     ffmpeg_bin,
@@ -53,10 +53,10 @@ def test_build_ffmpeg_cmd_targets_sp404_spec(tmp_path: Path):
     assert cmd[0] == ffmpeg_bin()
     assert "-y" in cmd
     assert cmd[cmd.index("-i") + 1] == str(src)
-    assert cmd[cmd.index("-ar") + 1] == str(SP404_SPEC["recommended_sample_rate"])
-    assert cmd[cmd.index("-ac") + 1] == str(SP404_SPEC["channels"])
+    assert cmd[cmd.index("-ar") + 1] == str(TRAKK_SPEC["recommended_sample_rate"])
+    assert cmd[cmd.index("-ac") + 1] == str(TRAKK_SPEC["channels"])
     assert cmd[cmd.index("-sample_fmt") + 1] == "s16"
-    assert cmd[cmd.index("-c:a") + 1] == SP404_SPEC["codec"]
+    assert cmd[cmd.index("-c:a") + 1] == TRAKK_SPEC["codec"]
     assert cmd[-1] == str(dst)
     # Pure linear conversion: no volume/compression filters.
     assert "-af" not in cmd

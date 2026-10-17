@@ -1,4 +1,6 @@
-# SP-404 MK2 Simple Converter
+# TRAKKCONVERTER
+
+Part of the ShardBeats **TRAKK** family (ex `SP-404MK2SimpleConverter`).
 
 Convert your sound libraries (drum kits, sample packs) to a format compatible with the **Roland SP-404 MK2** sampler.
 
@@ -19,7 +21,7 @@ Convert your sound libraries (drum kits, sample packs) to a format compatible wi
 ## Requirements
 - **Python 3.10+** - only needed to build or run from source
 - **FFmpeg** on the system PATH - only needed to build or run from source
-- (Recommended) The compiled `SP404Converter.exe`, which is **fully portable**: it bundles its own FFmpeg, so the end user needs **neither Python nor FFmpeg**
+- (Recommended) The compiled `TRAKKCONVERTER.exe`, which is **fully portable**: it bundles its own FFmpeg, so the end user needs **neither Python nor FFmpeg**
 
 ### Installing FFmpeg (Windows)
 1. Download from https://ffmpeg.org/download.html (the "essentials" build from gyan.dev).
@@ -40,9 +42,9 @@ installs the dependencies and launches the app. Works on the first and every lat
 pip install -r requirements.txt
 python main.py
 
-# Option B: full install (creates the `sp404-converter` command)
+# Option B: full install (creates the `trakkconverter` command)
 pip install .
-sp404-converter
+trakkconverter
 ```
 
 ### Classic venv setup
@@ -61,7 +63,7 @@ python main.py
 python main.py
 ```
 
-Or just run the compiled `SP404Converter.exe` (see build instructions below).
+Or just run the compiled `TRAKKCONVERTER.exe` (see build instructions below).
 
 ### Interface
 1. **Drag & drop** folders or audio files onto the window. The conversion queue groups the samples by their source folder, showing a folder header above each group.
@@ -83,7 +85,7 @@ The build script bundles `ffmpeg.exe` and `ffprobe.exe` from your system into th
 pip install pyinstaller
 python build_exe.py
 ```
-The executable will be at `dist/SP404Converter.exe`.
+The executable will be at `dist/TRAKKCONVERTER.exe`.
 
 > **Requirements for the build:** FFmpeg must be installed on the machine doing the build
 > and available on its PATH (the build locates it with `shutil.which`). If FFmpeg is missing,
@@ -121,12 +123,12 @@ skip gracefully if ffmpeg is not on PATH.
 
 ## Project structure
 ```
-sp404_converter/
+trakkconverter/
  main.py            # Entry point
  gui.py             # Main window + drag & drop + queue grouping
  converter.py       # FFmpeg logic + SP-404 spec detection
  build_exe.py       # PyInstaller build script for the standalone .exe
- setup.py           # pip installation (creates the `sp404-converter` command)
+ setup.py           # pip installation (creates the `trakkconverter` command)
  start.bat          # One-click first-run setup + launch (Windows)
  styles.qss         # Stylesheet (QSS/CSS)
  requirements.txt

@@ -1,4 +1,4 @@
-﻿"""SP-404 MK2 Simple Converter - GUI using PySide6."""
+﻿"""TRAKKCONVERTER - GUI using PySide6."""
 
 import sys
 from pathlib import Path
@@ -18,7 +18,7 @@ from PySide6.QtGui import QDragEnterEvent, QDragMoveEvent, QDropEvent, QIcon, QF
 
 from converter import (
     convert_file, find_audio_files, check_ffmpeg, ConversionResult,
-    SP404_SPEC,
+    TRAKK_SPEC,
 )
 
 
@@ -187,7 +187,7 @@ class DropListWidget(QListWidget):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("SP-404 MK2 Simple Converter")
+        self.setWindowTitle("TRAKKCONVERTER")
         # Accept files dropped anywhere on the window (fallback while the
         # QListWidget underneath handles its own drop area).
         self.setAcceptDrops(True)
@@ -245,7 +245,7 @@ class MainWindow(QMainWindow):
         main_layout.setContentsMargins(20, 16, 20, 16)
 
         # Title
-        title = QLabel("SP-404 MK2 Simple Converter")
+        title = QLabel("TRAKKCONVERTER")
         title.setObjectName("titleLabel")
         title.setAlignment(Qt.AlignCenter)
         main_layout.addWidget(title)
@@ -332,10 +332,10 @@ class MainWindow(QMainWindow):
 
         # Specs info
         specs_text = (
-            f"{SP404_SPEC['recommended_sample_rate']} Hz | "
-            f"{SP404_SPEC['bit_depth']}-bit | "
-            f"{'Stereo' if SP404_SPEC['channels'] == 2 else 'Mono'} | "
-            f"{SP404_SPEC['codec']} | .wav"
+            f"{TRAKK_SPEC['recommended_sample_rate']} Hz | "
+            f"{TRAKK_SPEC['bit_depth']}-bit | "
+            f"{'Stereo' if TRAKK_SPEC['channels'] == 2 else 'Mono'} | "
+            f"{TRAKK_SPEC['codec']} | .wav"
         )
         specs_label = QLabel(specs_text)
         specs_label.setObjectName("statusLabel")
@@ -602,7 +602,7 @@ def load_app_icon() -> Optional[QIcon]:
 
 def main():
     app = QApplication(sys.argv)
-    app.setApplicationName("SP-404 MK2 Simple Converter")
+    app.setApplicationName("TRAKKCONVERTER")
     app.setApplicationVersion("1.0.0")
 
     app_icon = load_app_icon()
